@@ -1,0 +1,186 @@
+buildscript {
+    ext {
+        springBootVersion = '2.0.4.RELEASE'
+    }
+    repositories {
+        mavenLocal()
+        maven {
+            name "aliyun1"
+            url 'http://maven.aliyun.com/nexus/content/groups/public'
+        }
+        maven {
+            name "aliyun2"
+            url 'http://maven.aliyun.com/mvn/repository/'
+        }
+        mavenCentral()
+        maven { url "https://repo.spring.io/snapshot" }
+        maven { url "https://repo.spring.io/milestone" }
+    }
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+    }
+}
+
+plugins {
+    id "com.github.spotbugs" version "1.6.1"
+}
+
+//Spotbugs
+tasks.withType(com.github.spotbugs.SpotBugsTask) {
+    reports {
+        xml.enabled false
+        html.enabled true
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'idea'
+apply plugin: 'org.springframework.boot'
+apply plugin: 'io.spring.dependency-management'
+apply plugin: 'checkstyle'
+
+//checkstyle
+checkstyle {
+    ignoreFailures = false
+    maxWarnings = 0
+    maxErrors = 0
+
+    dependencies {
+        checkstyle "com.puppycrawl.tools:checkstyle:8.8"
+        checkstyle "com.google.guava:guava:23.5-jre"
+    }
+
+}
+tasks.withType(Checkstyle) {
+    reports {
+        xml.enabled false
+        html.enabled true
+        html.stylesheet resources.text.fromFile('config/xsl/checkstyle-simple.xsl')
+    }
+}
+
+group 'com.yuuyoo'
+version '1.0-SNAPSHOT'
+
+sourceCompatibility = 1.8
+
+bootJar {
+    baseName = 'yuuyoo-ocr'
+
+    manifest {
+        attributes 'Implementation-Title': baseName,
+                'Implementation-Version': version,
+                'Built-By': System.getProperty('user.name'),
+                'Built-Date': new Date(),
+                'Built-JDK': System.getProperty('java.version')
+    }
+}
+
+ext {
+    springCloudVersion = 'Finchley.SR1'
+}
+
+sourceSets {
+    integTest {
+        java.srcDir file('src/integTest/java')
+        resources.srcDir file('src/integTest/resources')
+    }
+}
+
+task integTest(type: Test) {
+    testClassesDirs = sourceSets.integTest.output.classesDirs
+    classpath = sourceSets.integTest.runtimeClasspath
+}
+
+task integration(type: Test) {
+    testClassesDirs = sourceSets.integTest.output.classesDirs
+    classpath = sourceSets.integTest.runtimeClasspath
+}
+
+repositories {
+    mavenLocal()
+    maven { url "http://maven.aliyun.com/nexus/content/groups/public" }
+    mavenCentral()
+    maven { url "https://repo.spring.io/snapshot" }
+    maven { url "https://repo.spring.io/milestone" }
+}
+
+
+dependencies {
+    compile(
+            'org.springframework.boot:spring-boot-starter-web',
+            'org.springframework.boot:spring-boot-starter-actuator',
+            'org.springframework.boot:spring-boot-starter-webflux',
+            'org.springframework.boot:spring-boot-starter-data-mongodb-reactive',
+            'org.springframework.cloud:spring-cloud-starter-config',
+            'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client',
+            'org.springframework.cloud:spring-cloud-starter-sleuth',
+            'org.springframework.cloud:spring-cloud-starter-openfeign',
+            "com.fasterxml.jackson.dataformat:jackson-dataformat-xml",
+
+            "io.github.openfeign.form:feign-form:2.1.0",
+            "io.github.openfeign.form:feign-form-spring:2.1.0",
+
+            'org.apache.commons:commons-lang3:3.5',
+            'com.google.guava:guava:23.5-jre',
+            'com.squareup.okhttp3:okhttp:3.10.0',
+            'com.alibaba:fastjson:1.2.60'
+    )
+    
+    compileOnly('org.projectlombok:lombok')
+
+    testCompile(
+            'org.springframework.boot:spring-boot-starter-test',
+            'io.projectreactor:reactor-test',
+            "de.flapdoodle.embed:de.flapdoodle.embed.mongo",
+            "org.assertj:assertj-core:3.6.1",
+    )
+
+    integTestCompile sourceSets.main.output
+    integTestCompile configurations.testCompile
+    integTestCompile sourceSets.test.output
+    integTestRuntime configurations.testRuntime
+}
+
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+    }
+}
+check.dependsOn integTest
+
+Closure testReport(testType) {
+    return {desc, result ->
+        if (!desc.parent) { // will match the outermost suite
+            def output = "${testType} Results: ${result.resultType} (${result.testCount} tests, ${result.successfulTestCount} successes, ${result.failedTestCount} failures, ${result.skippedTestCount} skipped)"
+            def startItem = '|  ', endItem = '  |'
+            def repeatLength = startItem.length() + output.length() + endItem.length()
+            println('\n' + ('-' * repeatLength) + '\n' + startItem + output + endItem + '\n' + ('-' * repeatLength))
+        }
+
+    }
+}
+
+test {
+    maxHeapSize = "1024m"
+    maxParallelForks = 1
+    ignoreFailures Boolean.valueOf(System.getProperty("test.igonreFailures", "true"))
+
+    testLogging {
+        events "started", "passed", "skipped", "failed"
+        afterSuite testReport("test")
+    }
+}
+
+integTest {
+    maxHeapSize = "1024m"
+    maxParallelForks = 1
+    ignoreFailures Boolean.valueOf(System.getProperty("test.igonreFailures", "true"))
+
+    //jvmArgs '-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=6006'
+    testLogging {
+        events "started", "passed", "skipped", "failed"
+        afterSuite testReport("IntegTest")
+    }
+}

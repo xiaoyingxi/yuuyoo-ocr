@@ -1,0 +1,58 @@
+spring:
+  application.name: orc
+  profiles.active: development
+  data:
+    mongodb:
+      uri: mongodb://localhost/yuuyoo
+  cloud:
+    config:
+      failFast: true
+      enabled: false
+
+baidu:
+  ai:
+    ocr:
+      templates:
+       - platform: Wechat
+         id: 0a94216f20c954bfe5759f3ab0529d20
+       - platform: Alipay
+         id: cff0edf6d2cee2e802a43df2e01cd7b8
+      tokens:
+      - id: 17302576
+        name: yy-ocr
+        apiKey: L32FpbjIMplFB9VT6YgpI0Cc
+        secretKey: kWG8qjF9GBaost5wy74gCXzncObTUAUq
+
+eureka:
+  client:
+    enabled: false
+
+---
+spring:
+  profiles: integTest
+  cloud.config.enabled: false
+  data.mongodb.port: 0
+  mongodb.embedded.version: 3.4.10
+
+baidu:
+  ai:
+    ocr:
+      tokens:
+        - id: 17302576
+          name: yy-ocr
+          apiKey: L32FpbjIMplFB9VT6YgpI0Cc
+          secretKey: kWG8qjF9GBaost5wy74gCXzncObTUAUq
+
+---
+spring:
+  profiles: svt
+  cloud:
+    config:
+      uri: http://pilipa-configserver:8888
+
+---
+spring:
+  profiles: production
+  cloud:
+    config:
+      uri: http://pilipa-configserver:8888
